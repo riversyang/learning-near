@@ -6,7 +6,7 @@ A repository for learning near from zero experience.
 
 ### Install Rust
 
-For compiling the client of NEAR network - `nearcore`, you need to install Rust first. You can do this by simply following [the official guide of rust-lang.org](https://www.rust-lang.org/learn/get-started).
+For compiling the client of NEAR network - `nearcore`, or writing your own smart contracts of NEAR, you need to install Rust first. You can do this by simply following [the official guide of rust-lang.org](https://www.rust-lang.org/learn/get-started).
 
 ### Clone and compile nearcore
 
@@ -51,6 +51,8 @@ Follow the README of [near-cli repository](https://github.com/near/near-cli) to 
 
 ### Start a local node for testnet
 
+You can start a local node of NEAR by `nearup` directly:
+
 ```shell
 nearup run testnet --binary-path ~/workspace/nearcore/target/release
 ```
@@ -61,6 +63,18 @@ The initial sync up may take couple of hours, and it will download the genesis.j
 nearup stop
 rm -rf ~/.near/testnet
 nearup run testnet --binary-path ~/workspace/nearcore/target/release
+```
+
+Or you can use scripts to start the local node in docker (using parameter 1 to specify network id):
+
+```shell
+./scripts/start_near.sh {testnet|mainnet}
+```
+
+and then checking the status by using:
+
+```shell
+docker exec nearup nearup logs --follow
 ```
 
 > The `near-cli` will use default endpoint of each network. For example, the `testnet` will use `https://rpc.testnet.near.org` as node url. So you can skip this step if it's unnecessary to allow `near-cli` to interact with NEAR network through local node.
@@ -162,7 +176,7 @@ near tx-status {transaction id} --accountId {account id of sender}
 
 And we can see the detail of the transaction. For example:
 
-```json
+```shell
 {
   status: { SuccessValue: '' },
   transaction: {
@@ -251,3 +265,68 @@ near state sub-acct2.{your account name}.testnet
 ```
 
 > Note that, the balance of `sub-acct1` will be slightly less than 29 and the balace of `sub-acct2` is exactly 26. This is because the transaction fee is also needed to be deducted from the sender's account `sub-acct1`.
+
+## Your first contract
+
+### Initialize your Rust project
+
+In the following sections, we use `my-first-contract` as the name of our first smart contract of NEAR.
+
+> If you are NOT familiar to smart contract, you'd better refer to [the official doc](https://docs.near.org/docs/develop/contracts/overview) first for the basic concepts.
+
+Initialize the project by cargo first. In your workspace, simply run:
+
+```shell
+cargo init my-first-contract
+```
+
+Then edit the `Cargo.toml` file in folder `my-first-contract`. It may seems like:
+
+```toml
+[package]
+name = "my-first-contract"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = "3.1.0"
+
+[profile.release]
+codegen-units = 1
+# Tell `rustc` to optimize for small code size.
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+
+[workspace]
+members = []
+```
+
+Note that, we use a specific release version `3.1.0` of `near-sdk` in `dependencies`.
+
+> If you are familiar to rust docs, you can also refer to [the official doc of near-sdk](https://docs.rs/near-sdk/3.1.0/near_sdk/).
+
+Because the smart contract needs to be compiled to WASM binary rather than an executable binary, we specified `lib` settings, which indicated the project as a 'Rust Library'. And we need to change the file name of `main.rs` to `lib.rs`, before we can compile the project.
+
+> For more detail of `crate-type` of Rust, please refer to [the official doc](https://doc.rust-lang.org/reference/linkage.html).
+
+### Add code of your contract
+
+Delete auto-generated content in `lib.rs` and add the following code:
+
+```rust
+use near_sdk::{near_bindgen, env};
+use near_sdk::borsh::{BorshSerialize, BorshDeserialize};
+
+#[near_bindgen]
+#[derive(Default, BorshSerialize, BorshDeserialize)]
+pub struct MyFirstContract {
+    string_hash_map: HashMap<String, String>
+}
+```
